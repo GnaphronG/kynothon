@@ -1,5 +1,8 @@
 PREFIX := swarm
-SWARM_MACHINES = $(shell docker-machine ls --filter state=Running -q | grep $(PREFIX)-)
+RUNNING_MACHINES = $(shell docker-machine ls --filter state=Running -q | grep $(PREFIX)-)
+STOPPED_MACHINES = $(shell docker-machine ls --filter state=Stopped -q | grep $(PREFIX)-)
+SWARM_MACHINES = $(RUNNING_MACHINES) $(STOPPED_MACHINES)
+
 
 define machine_env =
 $(foreach env, $(shell docker-machine env $1 | sed -e '/^#/d' -e 's/export *//' -e 's/=/:=/' -e 's/"//g'), $(eval $(env)))
@@ -40,9 +43,9 @@ help:
 	@echo 'master		Spawn a swarm master'
 	@echo 'agent-{ID}	Spawn a swarm agent and add it to the cluster'
 	@echo 'all		Spawn a swarm cluster (i.e. all of the above)'
-	@echo 'show-machines	Show machines of the cluster'
-	@echo 'swarm-info	Show info about the swarm cluser'
-	@echo 'swarm-env	Swarm environmnent configuration'
+	@echo 'show_machines	Show machines of the cluster'
+	@echo 'swarm_info	Show info about the swarm cluser'
+	@echo 'swarm_env	Swarm environmnent configuration'
 	@echo ''
 	@echo 'stop			Stop the cluster'	
 	@echo 'stop-master	Stop the swarm master'
@@ -58,12 +61,12 @@ help:
 
 all: token master agent-00 agent-01 swarm-env
 
-swarm-env:
+swarm_env:
 	@echo 'Swarm cluster has been created and is now active machines.'
 	@echo 'To point your Docker client at it, run this in your shell:'
 	@echo 'eval $$(docker-machine env --swarm $(PREFIX)-master)'
 
-swarm-info:
+swarm_info:
 	$(call machine_env, --swarm $(PREFIX)-master)
 	docker info
 	
@@ -81,7 +84,7 @@ master: $(PREFIX)-master swarm-env
 
 agent-%: master $(PREFIX)-agent-%;
 
-show-machines:
+show_machines:
 	@docker-machine ls
 
 $(PREFIX)-%: token
@@ -104,13 +107,13 @@ clean-agent:
 	$(if $(findstring $(call cleaned_machine), $(SWARM_MACHINES)), $(call rm_machine))
 	
 stop-master stop-local:
-	$(if $(findstring $(PREFIX)-master, $(SWARM_MACHINES)), $(call stop_machine))
+	$(if $(findstring $(PREFIX)-master, $(RUNNING_MACHINES)), $(call stop_machine))
 
 stop-agent-%:
-	$(if $(findstring $(call stopped_machine), $(SWARM_MACHINES)), $(call stop_machine))
+	$(if $(findstring $(call stopped_machine), $(RUNNING_MACHINES)), $(call stop_machine))
 
 stop-agent:
-	$(if $(findstring $(call stopped_machine), $(SWARM_MACHINES)), $(call stop_machine))
+	$(if $(findstring $(call stopped_machine), $(RUNNING_MACHINES)), $(call stop_machine))
 
 stop: stop-master stop-agent stop-local
 
